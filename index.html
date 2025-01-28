@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .recording-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="bg-black text-white px-4 py-3">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center">
+                <i class="bi bi-mic-fill text-[#f08d66] text-2xl mr-2"></i>
+                <span class="font-bold text-xl">Meeting Assistant</span>
+            </div>
+            <div class="hidden md:flex space-x-6">
+                <button class="hover:text-[#f08d66]" onclick="showSection('home')">Home</button>
+                <button class="hover:text-[#f08d66]" onclick="showSection('about')">About</button>
+                <button class="hover:text-[#f08d66]" onclick="showModal('loginModal')">Login</button>
+                <button class="hover:text-[#f08d66]" onclick="showModal('signupModal')">Sign Up</button>
+            </div>
+            <button class="md:hidden" onclick="toggleMobileMenu()">
+                <i class="bi bi-list text-2xl"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="mainContent" class="container mx-auto px-4 py-8">
+        <!-- Home Section -->
+        <section id="home" class="space-y-8">
+            <div class="bg-black text-white rounded-lg p-8 text-center">
+                <h1 class="text-4xl font-bold mb-4">Transform Your Meetings</h1>
+                <p class="text-lg mb-6">Record, transcribe, and manage tasks all in one place</p>
+                <div class="flex flex-col md:flex-row justify-center gap-4">
+                    <button id="startRecording" class="bg-[#f08d66] text-white px-6 py-3 rounded-lg hover:bg-opacity-90">
+                        Start Recording
+                    </button>
+                    <input type="file" id="audioUpload" accept="audio/*" class="hidden">
+                    <label for="audioUpload" class="bg-white text-black px-6 py-3 rounded-lg cursor-pointer hover:bg-gray-100">
+                        Upload Audio
+                    </label>
+                </div>
+            </div>
+
+            <!-- Recording Interface -->
+            <div id="recordingInterface" class="hidden bg-white border border-gray-200 rounded-lg p-6">
+                <div class="text-center">
+                    <div id="recordingIndicator" class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500 recording-pulse"></div>
+                    <p class="text-lg font-semibold mb-2">Recording in Progress</p>
+                    <p id="recordingTimer" class="text-2xl font-bold mb-4">00:00</p>
+                    <button id="stopRecording" class="bg-black text-white px-6 py-2 rounded-lg hover:bg-opacity-90">
+                        Stop Recording
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                <h2 class="text-2xl font-bold mb-4">Recent Tasks</h2>
+                <div id="tasksList" class="space-y-4">
+                    <!-- Tasks will be dynamically added here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal fixed inset-0 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h2 class="text-2xl font-bold mb-4">Login</h2>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block mb-1">Email</label>
+                    <input type="email" required class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="block mb-1">Password</label>
+                    <input type="password" required class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <button type="submit" class="w-full bg-[#f08d66] text-white py-2 rounded-lg hover:bg-opacity-90">
+                    Login
+                </button>
+            </form>
+            <button onclick="hideModal('loginModal')" class="absolute top-4 right-4">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Recording Logic
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingTimer;
+        let recordingTime = 0;
+
+        document.getElementById('startRecording').addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    // Here you would typically send the audio to your backend
+                    console.log('Recording finished:', audioUrl);
+                };
+
+                mediaRecorder.start();
+                document.getElementById('recordingInterface').classList.remove('hidden');
+                startTimer();
+
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                alert('Unable to access microphone. Please ensure you have granted permission.');
+            }
+        });
+
+        document.getElementById('stopRecording').addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                clearInterval(recordingTimer);
+                document.getElementById('recordingInterface').classList.add('hidden');
+                recordingTime = 0;
+                audioChunks = [];
+            }
+        });
+
+        function startTimer() {
+            recordingTimer = setInterval(() => {
+                recordingTime++;
+                const minutes = Math.floor(recordingTime / 60).toString().padStart(2, '0');
+                const seconds = (recordingTime % 60).toString().padStart(2, '0');
+                document.getElementById('recordingTimer').textContent = `${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        // Modal Functions
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // Navigation Functions
+        function showSection(sectionId) {
+            const sections = ['home', 'about'];
+            sections.forEach(section => {
+                const element = document.getElementById(section);
+                if (element) {
+                    element.style.display = section === sectionId ? 'block' : 'none';
+                }
+            });
+        }
+
+        // Mock Tasks Data
+        const mockTasks = [
+            { id: 1, title: 'Review Q4 Marketing Strategy', assignee: 'John Doe', status: 'pending' },
+            { id: 2, title: 'Update Product Roadmap', assignee: 'Jane Smith', status: 'completed' },
+            { id: 3, title: 'Client Meeting Follow-up', assignee: 'Mike Johnson', status: 'pending' }
+        ];
+
+        // Render Tasks
+        function renderTasks() {
+            const tasksContainer = document.getElementById('tasksList');
+            tasksContainer.innerHTML = mockTasks.map(task => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                        <h3 class="font-semibold">${task.title}</h3>
+                        <p class="text-sm text-gray-600">Assigned to: ${task.assignee}</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-sm ${
+                        task.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }">
+                        ${task.status}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        // Initialize
+        renderTasks();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
